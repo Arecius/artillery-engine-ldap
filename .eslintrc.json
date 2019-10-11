@@ -1,0 +1,25 @@
+  
+{
+  "parser": "babel-eslint",
+  "extends": ["airbnb", "prettier"],
+  "plugins": ["prettier"],
+  "rules": {
+    "prettier/prettier": ["error"],
+    "multiline-ternary": ["error", "always"],
+    "no-unused-expressions": ["error", { "allowTernary": true }],
+    "react/prop-types": 0,
+    "no-underscore-dangle": 0,
+    "import/imports-first": ["error", "absolute-first"],
+    "import/newline-after-import": "error"
+  },
+  "globals": {
+    "document": true
+  },
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "paths": ["./src"]
+      }
+    }
+  }
+}
