@@ -1,14 +1,10 @@
 const debug = require('debug')('engine:ldap');
 const { createClient } = require('./lib/client');
+const time = require('./lib/time');
 
 const allowedOperations = ['bind', 'search', 'unbind'];
 
 const OPERATION_LOOP = 'loop';
-
-const validScenario = script => {
-  if (!script.bind) throw new Error('Bind operation must be provided');
-  return true;
-};
 
 const operationName = step => Object.keys(step)[0];
 
@@ -17,17 +13,32 @@ const parseOperationResult = result => {
   return `${result ? 'success' : 'fail'}`;
 };
 
-const runStep = async (client, step) => {
+const runFlow = async (client, flow, ee) => {
+  while (flow.length !== 0) await runStep(client, flow.shift(), ee);
+};
+
+const runLoop = async (client, flow, count, ee) => {
+  for (let counter = count; counter > 0; counter -= 1) await runFlow(client, flow, ee);
+};
+
+const runStep = async (client, step, ee) => {
   const operation = operationName(step);
   const options = step[operation];
+
   debug(`Executing ${operation} with options ${JSON.stringify(options)}`);
+
   if (operation === OPERATION_LOOP) {
-    debug('Running loop');
+    const { loop: steps, count } = options;
+    await runLoop(steps, count);
   } else if (allowedOperations.includes(operation)) {
+    ee.emit('request');
+    const startedAt = time.getTime();
     const result = await client[operation](options);
+    const delta = time.getDelta(startedAt);
+    ee.emit('response', delta, 'Success');
     debug(`${operation}: ${parseOperationResult(result)}`);
   } else {
-    throw new Error(`Unknown operation ${operation}`);
+    ee.emit('error', new Error(`Unknown operation ${operation}`));
   }
 };
 
@@ -35,26 +46,34 @@ function LDAPEngine(script, ee, helpers) {
   this.script = script;
   this.ee = ee;
   this.helpers = helpers;
-  this.target = script.config.target;
 
   return this;
 }
 
-LDAPEngine.prototype.createScenario = function createScenario(scenarioSpec, ee) {
-  const self = this;
-  return async scenarioContext => {
-    debug(`Running scenario ${scenarioSpec.name}`);
+LDAPEngine.prototype.createScenario = function createScenario(spec, ee) {
+  const ldapHost = this.script.config.target;
+  const config = this.script.config.ldap || {};
+
+  return async (context, callback) => {
+    const { name, flow } = spec;
+
+    debug(`Running scenario ${name}`);
+
     ee.emit('started');
 
-    debug(`LDAP Server: ${self.target}`);
-    const client = await createClient(self.target);
+    debug(`LDAP Server host: ${ldapHost}`);
+    debug(`LDAP Options: ${JSON.stringify(config)}`);
 
-    while (scenarioSpec.flow.length !== 0) {
-      const step = scenarioSpec.flow.shift();
-      await runStep(client, step);
+    const client = await createClient({ url: ldapHost, ...config });
+
+    try {
+      await runFlow(client, flow, ee);
+    } catch (error) {
+      ee.emit('error', error);
     }
-
+    debug(`Finishing scenario ${name}`);
     ee.emit('done');
+    callback(null, context);
   };
 };
 
