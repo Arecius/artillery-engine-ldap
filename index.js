@@ -14,7 +14,7 @@ const parseOperationResult = result => {
 };
 
 const runFlow = async (client, flow, ee) => {
-  while (flow.length !== 0) await runStep(client, flow.shift(), ee);
+  for (let step of flow) await runStep(client, step, ee);
 };
 
 const runLoop = async (client, flow, count, ee) => {
@@ -28,8 +28,8 @@ const runStep = async (client, step, ee) => {
   debug(`Executing ${operation} with options ${JSON.stringify(options)}`);
 
   if (operation === OPERATION_LOOP) {
-    const { loop: steps, count } = options;
-    await runLoop(steps, count);
+    const { count, flow } = options;
+    await runLoop(client, flow, count, ee);
   } else if (allowedOperations.includes(operation)) {
     ee.emit('request');
     const startedAt = time.getTime();
@@ -55,7 +55,11 @@ LDAPEngine.prototype.createScenario = function createScenario(spec, ee) {
   const config = this.script.config.ldap || {};
 
   return async (context, callback) => {
-    const { name, flow } = spec;
+    const { name, flow, skip } = spec;
+    if (skip) {
+      debug(`Skipping scenario ${name}`);
+      return;
+    }
 
     debug(`Running scenario ${name}`);
 
