@@ -14,7 +14,7 @@ const parseOperationResult = result => {
 };
 
 const runFlow = async (client, flow, ee) => {
-  for (let step of flow) await runStep(client, step, ee);
+  for (const step of flow) await runStep(client, step, ee);
 };
 
 const runLoop = async (client, flow, count, ee) => {
@@ -33,9 +33,19 @@ const runStep = async (client, step, ee) => {
   } else if (allowedOperations.includes(operation)) {
     ee.emit('request');
     const startedAt = time.getTime();
-    const result = await client[operation](options);
+    let result = null;
+    let status = 'succeeded';
+
+    try {
+      result = await client[operation](options);
+    } catch (error) {
+      status = 'failed';
+      ee.emit('error', error);
+    }
+
     const delta = time.getDelta(startedAt);
-    ee.emit('response', delta, 'Success');
+    ee.emit('response', delta, `${operation}: ${status}`);
+
     debug(`${operation}: ${parseOperationResult(result)}`);
   } else {
     ee.emit('error', new Error(`Unknown operation ${operation}`));
