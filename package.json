@@ -1,6 +1,6 @@
 {
   "name": "artillery-engine-ldap",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Load test LDAP with Artillery",
   "main": "index.js",
   "scripts": {
@@ -11,11 +11,11 @@
     "url": "git+https://github.com/Arecius/artillery-engine-ldap.git"
   },
   "keywords": [
-    "Aritllery",
-    "LDAPJS"
+    "artillery",
+    "ldap"
   ],
   "author": "Daniel Henriquez",
-  "license": "MPL-2.0",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/Arecius/artillery-engine-ldap/issues"
   },
