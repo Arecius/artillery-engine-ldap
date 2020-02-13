@@ -56,16 +56,16 @@ function LDAPEngine(script, ee, helpers) {
   this.script = script;
   this.ee = ee;
   this.helpers = helpers;
-
   return this;
 }
 
 LDAPEngine.prototype.createScenario = function createScenario(spec, ee) {
-  const ldapHost = this.script.config.target;
-  const config = this.script.config.ldap || {};
+  const { target: host, ldap: config } = this.script.config;
+  this.helpers.template(spec.flow, { vars: { $processEnvironment: process.env } }, true);
 
   return async (context, callback) => {
     const { name, flow, skip } = spec;
+
     if (skip) {
       debug(`Skipping scenario ${name}`);
       return;
@@ -75,10 +75,10 @@ LDAPEngine.prototype.createScenario = function createScenario(spec, ee) {
 
     ee.emit('started');
 
-    debug(`LDAP Server host: ${ldapHost}`);
+    debug(`LDAP Server host: ${host}`);
     debug(`LDAP Options: ${JSON.stringify(config)}`);
 
-    const client = await createClient({ url: ldapHost, ...config });
+    const client = await createClient({ url: host, ...config });
 
     try {
       await runFlow(client, flow, ee);
